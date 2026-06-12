@@ -1,7 +1,9 @@
-import { TodoApp } from "@/components/TodoApp";
+"use client";
+
+import { Menu } from "@/components/Menu";
 
 const Index = () => {
-  return <TodoApp />;
+  return <Menu />;
 };
 
 export default Index;
