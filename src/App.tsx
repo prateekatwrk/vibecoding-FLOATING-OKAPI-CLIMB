@@ -7,11 +7,11 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Home } from "./pages/Home";
-import BackButton from "@/components/BackButton"; // Fixed import
+import { TodoApp } from "./pages/TodoApp"; // Fixed: use named export
+import BackButton from "@/components/BackButton";
 
 const queryClient = new QueryClient();
 
@@ -21,40 +21,49 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen">
-      {/* Show Sidebar only on non-home routes */}
+      {/* Show Sidebar on all pages except the home page */}
       {!isHome && <Sidebar />}
       <div className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/todolist" element={<Index />} />
+          <Route path="/todolist" element={<TodoApp />} />
           {/* placeholder routes for future pages */}
-          <Route path="/attendance" element={
-            <>
-              <BackButton className="mb-4" />
-              <div className="p-8">
-                <h1 className="text-2xl font-bold mb-4">Attendance</h1>
-                <p className="text-gray-600">Attendance page (coming soon)</p>
-              </div>
-            </>
-          } />
-          <Route path="/tools" element={
-            <>
-              <BackButton className="mb-4" />
-              <div className="p-8">
-                <h1 className="text-2xl font-bold mb-4">Tools</h1>
-                <p className="text-gray-600">Tools page (coming soon)</p>
-              </div>
-            </>
-          } />
-          <Route path="/payslip" element={
-            <>
-              <BackButton className="mb-4" />
-              <div className="p-8">
-                <h1 className="text-2xl font-bold mb-4">Payslip</h1>
-                <p className="text-gray-600">Payslip page (coming soon)</p>
-              </div>
-            </>
-          } />
+          <Route
+            path="/attendance"
+            element={
+              <>
+                <BackButton className="mb-4" />
+                <div className="p-8">
+                  <h1 className="text-2xl font-bold mb-4">Attendance</h1>
+                  <p className="text-gray-600">Attendance page (coming soon)</p>
+                </div>
+              </>
+            }
+          />
+          <Route
+            path="/tools"
+            element={
+              <>
+                <BackButton className="mb-4" />
+                <div className="p-8">
+                  <h1 className="text-2xl font-bold mb-4">Tools</h1>
+                  <p className="text-gray-600">Tools page (coming soon)</p>
+                </div>
+              </>
+            }
+          />
+          <Route
+            path="/payslip"
+            element={
+              <>
+                <BackButton className="mb-4" />
+                <div className="p-8">
+                  <h1 className="text-2xl font-bold mb-4">Payslip</h1>
+                  <p className="text-gray-600">Payslip page (coming soon)</p>
+                </div>
+              </>
+            }
+          />
         </Routes>
       </div>
     </div>
