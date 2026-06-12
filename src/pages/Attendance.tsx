@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import BackButton from "@/components/BackButton";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,15 +10,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  MapPin,
-  Play,
-  Square,
-  Clock,
-  CalendarDays,
-  Navigation,
   AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Navigation,
 } from "lucide-react";
-import { useAttendanceTracking } from "@/hooks/useAttendanceTracking";
+import { useAttendanceTrackingStatus } from "@/components/AttendanceTrackingProvider";
 import { type AttendanceRecord } from "@/types/attendance";
 
 function AttendanceEmptyState() {
@@ -32,7 +30,8 @@ function AttendanceEmptyState() {
         No attendance records yet
       </h3>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-        Location tracking will automatically save your position during work hours.
+        Attendance tracking is automatic. Records will appear here once location is
+        saved during work hours.
       </p>
     </div>
   );
@@ -55,7 +54,7 @@ function AttendanceRecordCard({ record }: { record: AttendanceRecord }) {
           </div>
 
           <div className="rounded-2xl bg-indigo-50 px-3 py-2 text-right">
-            <p className="text-xs font-medium text-indigo-700">Saved</p>
+            <p className="text-xs font-medium text-indigo-700">Accuracy</p>
             <p className="mt-1 text-sm font-semibold text-indigo-900">
               {record.accuracy ? `${Math.round(record.accuracy)}m` : "N/A"}
             </p>
@@ -71,9 +70,9 @@ export const Attendance = () => {
     records,
     trackingEnabled,
     lastCheckMessage,
-    startTracking,
-    stopTracking,
-  } = useAttendanceTracking();
+    nextSaveLabel,
+    isWorkHoursNow,
+  } = useAttendanceTrackingStatus();
 
   const today = new Intl.DateTimeFormat(undefined, {
     weekday: "long",
@@ -81,6 +80,20 @@ export const Attendance = () => {
     day: "numeric",
     year: "numeric",
   }).format(new Date());
+
+  const statusLabel = trackingEnabled
+    ? isWorkHoursNow
+      ? "Auto tracking on"
+      : "Waiting for 10 AM"
+    : "Permission needed";
+
+  const statusClassName = trackingEnabled
+    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+    : "border-amber-200 bg-amber-50 text-amber-900";
+
+  const pillClassName = trackingEnabled
+    ? "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+    : "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200";
 
   return (
     <>
@@ -112,42 +125,57 @@ export const Attendance = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex gap-3">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-                    <p className="text-sm leading-6 text-amber-900">
-                      Tracking runs between 10 AM and 7 PM and saves location once
-                      every 3 hours. The app auto-starts when you visit this page.
+                <div className={`rounded-2xl border p-4 ${statusClassName}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex gap-3">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold">Attendance tracking</p>
+                        <p className="mt-1 text-sm leading-6 opacity-90">
+                          {lastCheckMessage}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pillClassName}`}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <p className="text-xs font-medium text-slate-500">
+                        Next save
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-slate-950">
+                      {nextSaveLabel}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-slate-500" />
+                      <p className="text-xs font-medium text-slate-500">
+                        Work window
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-slate-950">
+                      10 AM – 7 PM
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  {trackingEnabled ? (
-                    <Button
-                      type="button"
-                      className="flex-1 bg-rose-600 hover:bg-rose-700"
-                      onClick={stopTracking}
-                    >
-                      <Square className="mr-2 h-4 w-4" />
-                      Stop
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                      onClick={startTracking}
-                    >
-                      <Play className="mr-2 h-4 w-4" />
-                      Start
-                    </Button>
-                  )}
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-slate-500" />
-                    <p className="text-sm text-slate-600">{lastCheckMessage}</p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex gap-3">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                    <p className="text-sm leading-6 text-amber-900">
+                      Tracking is automatic from 10 AM to 7 PM and saves one
+                      location record about every 3 hours. The history is stored
+                      locally in this app.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -161,7 +189,8 @@ export const Attendance = () => {
                   <div>
                     <CardTitle>Attendance history</CardTitle>
                     <CardDescription>
-                      {records.length} saved location record{records.length === 1 ? "" : "s"}.
+                      {records.length} saved location record
+                      {records.length === 1 ? "" : "s"}.
                     </CardDescription>
                   </div>
                 </div>

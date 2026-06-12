@@ -5,13 +5,20 @@ import {
   loadAttendanceRecords,
 } from "@/types/attendance";
 
-const TRACKING_INTERVAL_MS = 3 * 60 * 60 * 1000;
-const WORK_START_HOUR = 10;
-const WORK_END_HOUR = 19;
+export const TRACKING_INTERVAL_MS = 3 * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = 60 * 1000;
+const WORK_START_MINUTES = 10 * 60;
+const WORK_END_MINUTES = 19 * 60;
+
+const GEOLOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  maximumAge: 10 * 60 * 1000,
+  timeout: 20 * 1000,
+};
 
 function isWithinWorkHours(date: Date) {
-  const hour = date.getHours();
-  return hour >= WORK_START_HOUR && hour < WORK_END_HOUR;
+  const timeInMinutes = date.getHours() * 60 + date.getMinutes();
+  return timeInMinutes >= WORK_START_MINUTES && timeInMinutes <= WORK_END_MINUTES;
 }
 
 function getLatestRecord(records: AttendanceRecord[]) {
@@ -27,112 +34,219 @@ function getLatestRecord(records: AttendanceRecord[]) {
 function getCityName(geolocationPosition: GeolocationPosition) {
   const { latitude, longitude } = geolocationPosition.coords;
 
-  if (latitude >= 28.4 && latitude <= 29.1 && longitude >= 76.8 && longitude <= 77.4) {
+  if (
+    latitude >= 28.4 &&
+    latitude <= 29.1 &&
+    longitude >= 76.8 &&
+    longitude <= 77.4
+  ) {
     return "Delhi";
   }
 
-  if (latitude >= 18.8 && latitude <= 19.3 && longitude >= 72.6 && longitude <= 73.1) {
+  if (
+    latitude >= 18.8 &&
+    latitude <= 19.3 &&
+    longitude >= 72.6 &&
+    longitude <= 73.1
+  ) {
     return "Mumbai";
   }
 
-  if (latitude >= 12.8 && latitude <= 13.2 && longitude >= 77.4 && longitude <= 77.8) {
+  if (
+    latitude >= 12.8 &&
+    latitude <= 13.2 &&
+    longitude >= 77.4 &&
+    longitude <= 77.8
+  ) {
     return "Bengaluru";
   }
 
-  if (latitude >= 22.4 && latitude <= 22.7 && longitude >= 88.2 && longitude <= 88.5) {
+  if (
+    latitude >= 22.4 &&
+    latitude <= 22.7 &&
+    longitude >= 88.2 &&
+    longitude <= 88.5
+  ) {
     return "Kolkata";
   }
 
-  if (latitude >= 17.2 && latitude <= 17.6 && longitude >= 78.3 && longitude <= 78.6) {
+  if (
+    latitude >= 17.2 &&
+    latitude <= 17.6 &&
+    longitude >= 78.3 &&
+    longitude <= 78.6
+  ) {
     return "Hyderabad";
   }
 
   return "Unknown City";
 }
 
+function formatDurationUntilNextSave(remainingMs: number) {
+  const totalMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0 && minutes > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+
+  return `${minutes}m`;
+}
+
+function getNextEligibleSaveTime(now: Date, lastCapture: number) {
+  const dueTime =
+    lastCapture > 0 ? lastCapture + TRACKING_INTERVAL_MS : now.getTime();
+  const candidate = new Date(Math.max(dueTime, now.getTime()));
+
+  while (!isWithinWorkHours(candidate)) {
+    candidate.setTime(candidate.getTime() + 60 * 60 * 1000);
+  }
+
+  return candidate.getTime();
+}
+
+function getNextSaveLabel(nowTime: number, lastCapture: number) {
+  const nextSaveTime = getNextEligibleSaveTime(new Date(nowTime), lastCapture);
+  const remaining = nextSaveTime - nowTime;
+
+  if (remaining <= 0) {
+    return "Next save now";
+  }
+
+  return `Next save in ${formatDurationUntilNextSave(remaining)}`;
+}
+
 export function useAttendanceTracking() {
-  const [records, setRecords] = React.useState<AttendanceRecord[]>(loadAttendanceRecords());
+  const [records, setRecords] = React.useState<AttendanceRecord[]>(
+    loadAttendanceRecords,
+  );
   const [trackingEnabled, setTrackingEnabled] = React.useState(false);
-  const [lastCheckMessage, setLastCheckMessage] = React.useState("Location tracking is ready.");
+  const [lastCheckMessage, setLastCheckMessage] = React.useState(
+    "Auto tracking is starting.",
+  );
+  const [nextSaveLabel, setNextSaveLabel] = React.useState(
+    "Waiting for first automatic save.",
+  );
+  const hasAttemptedStartRef = React.useRef(false);
+  const isWorkHoursNow = isWithinWorkHours(new Date());
+
+  React.useEffect(() => {
+    localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(records));
+  }, [records]);
 
   const saveCurrentLocation = React.useCallback(() => {
+    const now = new Date();
+
+    if (!isWithinWorkHours(now)) {
+      setLastCheckMessage("Outside work hours. Auto tracking will resume at 10 AM.");
+      setNextSaveLabel("Starts at 10 AM");
+      return;
+    }
+
     if (!navigator.geolocation) {
       setLastCheckMessage("Geolocation is not supported by this browser.");
+      setTrackingEnabled(false);
+      setNextSaveLabel("Unavailable");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const now = new Date();
-        const latestRecord = getLatestRecord(records);
-        const lastCapture = latestRecord?.timestamp ?? 0;
-        const shouldSave = now.getTime() - lastCapture >= TRACKING_INTERVAL_MS;
+        const nowTime = Date.now();
 
-        if (!shouldSave) {
-          setLastCheckMessage("Location checked. Next save is due in 3 hours.");
-          return;
-        }
+        setRecords((currentRecords) => {
+          const latestRecord = getLatestRecord(currentRecords);
+          const lastCapture = latestRecord?.timestamp ?? 0;
 
-        const newRecord: AttendanceRecord = {
-          id: `${Date.now()}`,
-          city: getCityName(position),
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy ?? null,
-          date: now.toLocaleString(),
-          timestamp: now.getTime(),
-        };
+          if (
+            lastCapture > 0 &&
+            nowTime - lastCapture < TRACKING_INTERVAL_MS
+          ) {
+            setNextSaveLabel(getNextSaveLabel(nowTime, lastCapture));
+            setLastCheckMessage(
+              "Location checked. Waiting for the next 3-hour save.",
+            );
+            return currentRecords;
+          }
 
-        const nextRecords = [newRecord, ...records].sort(
-          (a, b) => b.timestamp - a.timestamp,
-        );
+          const newRecord: AttendanceRecord = {
+            id: `${Date.now()}`,
+            city: getCityName(position),
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy ?? null,
+            date: new Date(nowTime).toLocaleString(),
+            timestamp: nowTime,
+          };
 
-        setRecords(nextRecords);
-        localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(nextRecords));
-        setLastCheckMessage("Location saved for attendance.");
+          const nextRecords = [newRecord, ...currentRecords].sort(
+            (a, b) => b.timestamp - a.timestamp,
+          );
+
+          setNextSaveLabel(getNextSaveLabel(nowTime, newRecord.timestamp));
+          setLastCheckMessage("Location saved for attendance.");
+
+          return nextRecords;
+        });
       },
       () => {
-        setLastCheckMessage("Could not access your current location.");
+        setLastCheckMessage(
+          "Location permission is required for automatic attendance tracking. Enable it in your browser or app settings.",
+        );
+        setTrackingEnabled(false);
+        setNextSaveLabel("Permission needed");
       },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10 * 60 * 1000,
-        timeout: 20 * 1000,
-      },
+      GEOLOCATION_OPTIONS,
     );
-  }, [records]);
+  }, []);
 
   const startTracking = React.useCallback(() => {
-    if (!navigator.geolocation) {
-      setLastCheckMessage("Geolocation is not supported by this browser.");
+    if (trackingEnabled || hasAttemptedStartRef.current) {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        setTrackingEnabled(true);
-        setLastCheckMessage("Location tracking started.");
-        saveCurrentLocation();
-      },
-      () => {
-        setLastCheckMessage("Please allow location permission to start tracking.");
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10 * 60 * 1000,
-        timeout: 20 * 1000,
-      },
-    );
-  }, [saveCurrentLocation]);
+    hasAttemptedStartRef.current = true;
 
-  const stopTracking = React.useCallback(() => {
-    setTrackingEnabled(false);
-    setLastCheckMessage("Location tracking stopped.");
-  }, []);
+    if (!navigator.geolocation) {
+      setLastCheckMessage("Geolocation is not supported by this browser.");
+      setNextSaveLabel("Unavailable");
+      return;
+    }
 
-  // Auto-start tracking on component mount
+    setTrackingEnabled(true);
+
+    if (isWithinWorkHours(new Date())) {
+      setLastCheckMessage("Auto tracking started. Getting your location...");
+      setNextSaveLabel("Getting first location");
+    } else {
+      setLastCheckMessage("Auto tracking is waiting for 10 AM.");
+      setNextSaveLabel("Starts at 10 AM");
+    }
+
+    saveCurrentLocation();
+  }, [saveCurrentLocation, trackingEnabled]);
+
   React.useEffect(() => {
     startTracking();
+  }, [startTracking]);
+
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        startTracking();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [startTracking]);
 
   React.useEffect(() => {
@@ -141,27 +255,23 @@ export function useAttendanceTracking() {
     }
 
     const checkNow = () => {
-      if (isWithinWorkHours(new Date())) {
-        saveCurrentLocation();
-      } else {
-        setLastCheckMessage("Outside work hours. Tracking will resume at 10 AM.");
-      }
+      saveCurrentLocation();
     };
 
     checkNow();
 
-    const intervalId = window.setInterval(checkNow, 10 * 60 * 1000);
+    const intervalId = window.setInterval(checkNow, CHECK_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [trackingEnabled, saveCurrentLocation]);
+  }, [saveCurrentLocation, trackingEnabled]);
 
   return {
     records,
     trackingEnabled,
     lastCheckMessage,
-    startTracking,
-    stopTracking,
+    nextSaveLabel,
+    isWorkHoursNow,
   };
 }
