@@ -1,6 +1,6 @@
 "use client";
 
-import { BackButton } from "@/components/BackButton";
+import BackButton from "@/components/BackButton";
 import * as React from "react";
 import {
   CalendarDays,
