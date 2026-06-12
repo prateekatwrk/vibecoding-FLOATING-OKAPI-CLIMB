@@ -17,23 +17,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [userId, setUserId] = React.useState<string | null>(null);
 
-  const login = (id: string, password: string) => {
-    // placeholder: accept any non‑empty credentials for now
-    if (id && password) {
+  React.useEffect(() => {
+    const savedUserId = localStorage.getItem("dyad-user-id");
+
+    if (savedUserId) {
+      setUserId(savedUserId);
       setIsAuthenticated(true);
+    }
+  }, []);
+
+  const login = (id: string, password: string) => {
+    if (id && password) {
       setUserId(id);
+      setIsAuthenticated(true);
+      localStorage.setItem("dyad-user-id", id);
     }
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
     setUserId(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem("dyad-user-id");
   };
 
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, login, logout, userId }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, userId }}>
       {children}
     </AuthContext.Provider>
   );
@@ -41,8 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useAuth = (): AuthContextProps => {
   const context = React.useContext(AuthContext);
+
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
+
   return context;
 };
