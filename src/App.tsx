@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Home } from "./pages/Home";
 import { TodoApp } from "./pages/TodoApp";
+import { Attendance } from "./pages/Attendance";
 import BackButton from "@/components/BackButton";
 
 const queryClient = new QueryClient();
@@ -30,18 +31,7 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/todolist" element={<TodoApp />} />
-                    <Route
-                      path="/attendance"
-                      element={
-                        <>
-                          <BackButton className="mb-4" />
-                          <div className="p-8">
-                            <h1 className="text-2xl font-bold mb-4">Attendance</h1>
-                            <p className="text-gray-600">Attendance page (coming soon)</p>
-                          </div>
-                        </>
-                      }
-                    />
+                    <Route path="/attendance" element={<Attendance />} />
                     <Route
                       path="/tools"
                       element={
