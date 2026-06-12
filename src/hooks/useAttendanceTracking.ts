@@ -102,28 +102,6 @@ export function useAttendanceTracking() {
     );
   }, [records]);
 
-  React.useEffect(() => {
-    if (!trackingEnabled) {
-      return;
-    }
-
-    const checkNow = () => {
-      if (isWithinWorkHours(new Date())) {
-        saveCurrentLocation();
-      } else {
-        setLastCheckMessage("Outside work hours. Tracking will resume at 10 AM.");
-      }
-    };
-
-    checkNow();
-
-    const intervalId = window.setInterval(checkNow, 10 * 60 * 1000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [trackingEnabled, saveCurrentLocation]);
-
   const startTracking = React.useCallback(() => {
     if (!navigator.geolocation) {
       setLastCheckMessage("Geolocation is not supported by this browser.");
@@ -151,6 +129,33 @@ export function useAttendanceTracking() {
     setTrackingEnabled(false);
     setLastCheckMessage("Location tracking stopped.");
   }, []);
+
+  // Auto-start tracking on component mount
+  React.useEffect(() => {
+    startTracking();
+  }, [startTracking]);
+
+  React.useEffect(() => {
+    if (!trackingEnabled) {
+      return;
+    }
+
+    const checkNow = () => {
+      if (isWithinWorkHours(new Date())) {
+        saveCurrentLocation();
+      } else {
+        setLastCheckMessage("Outside work hours. Tracking will resume at 10 AM.");
+      }
+    };
+
+    checkNow();
+
+    const intervalId = window.setInterval(checkNow, 10 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [trackingEnabled, saveCurrentLocation]);
 
   return {
     records,

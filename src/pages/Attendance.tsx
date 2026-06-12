@@ -32,7 +32,7 @@ function AttendanceEmptyState() {
         No attendance records yet
       </h3>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-        Start tracking to save your city and location during work hours.
+        Location tracking will automatically save your position during work hours.
       </p>
     </div>
   );
@@ -117,7 +117,7 @@ export const Attendance = () => {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
                     <p className="text-sm leading-6 text-amber-900">
                       Tracking runs between 10 AM and 7 PM and saves location once
-                      every 3 hours.
+                      every 3 hours. The app auto-starts when you visit this page.
                     </p>
                   </div>
                 </div>
