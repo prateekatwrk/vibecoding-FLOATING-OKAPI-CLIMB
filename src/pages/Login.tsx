@@ -14,15 +14,17 @@ export const Login = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect to home if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate("/");
+      navigate("/", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     login(id, password);
+    navigate("/", { replace: true });
   };
 
   return (
