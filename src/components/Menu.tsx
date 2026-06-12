@@ -21,24 +21,28 @@ export const Menu = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-lg overflow-y-auto">
-      <div className="p-4 space-y-2">
+    <div className="space-y-4 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+          Navigation
+        </p>
         {items.map((item) => {
           const Icon = item.icon;
           const to = item.path;
           return (
-            <Button              key={item.path}
+            <Button
+              key={item.path}
               type="button"
               variant="ghost"
-              className="flex items-center justify-start w-full px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-gray-50"
+              className="w-full flex items-center justify-start px-4 py-3 text-left text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg"
               onClick={() => navigate(to)}
             >
-              <Icon className="mr-2 h-5 w-5 text-gray-600" />
-              <span className="text-gray-800">{item.label}</span>
+              <Icon className="mr-3 h-5 w-5 text-gray-600" />
+              <span className="font-medium">{item.label}</span>
             </Button>
           );
         })}
       </div>
-    </nav>
+    </div>
   );
 };

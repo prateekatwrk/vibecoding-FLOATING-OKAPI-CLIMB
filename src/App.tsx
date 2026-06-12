@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Home } from "./pages/Home";
+import { BackButton } from "@/components/BackButton";
 
 const queryClient = new QueryClient();
 
@@ -22,9 +23,33 @@ const Layout = () => (
         <Route path="/" element={<Home />} />
         <Route path="/todolist" element={<Index />} />
         {/* placeholder routes for future pages */}
-        <Route path="/attendance" element={<div className="p-8">Attendance page (coming soon)</div>} />
-        <Route path="/tools" element={<div className="p-8">Tools page (coming soon)</div>} />
-        <Route path="/payslip" element={<div className="p-8">Payslip page (coming soon)</div>} />
+        <Route path="/attendance" element={
+          <>
+            <BackButton className="mb-4" />
+            <div className="p-8">
+              <h1 className="text-2xl font-bold mb-4">Attendance</h1>
+              <p className="text-gray-600">Attendance page (coming soon)</p>
+            </div>
+          </>
+        } />
+        <Route path="/tools" element={
+          <>
+            <BackButton className="mb-4" />
+            <div className="p-8">
+              <h1 className="text-2xl font-bold mb-4">Tools</h1>
+              <p className="text-gray-600">Tools page (coming soon)</p>
+            </div>
+          </>
+        } />
+        <Route path="/payslip" element={
+          <>
+            <BackButton className="mb-4" />
+            <div className="p-8">
+              <h1 className="text-2xl font-bold mb-4">Payslip</h1>
+              <p className="text-gray-600">Payslip page (coming soon)</p>
+            </div>
+          </>
+        } />
       </Routes>
     </div>
   </div>
