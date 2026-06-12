@@ -4,7 +4,11 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-export const BackButton = () => {
+interface BackButtonProps {
+  className?: string;
+}
+
+const BackButton = ({ className }: BackButtonProps) => {
   const navigate = useNavigate();
 
   return (
@@ -12,9 +16,11 @@ export const BackButton = () => {
       type="button"
       variant="ghost"
       onClick={() => navigate(-1)}
-      className="flex items-center justify-start"
+      className={className}
     >
       ← Back
     </Button>
   );
 };
+
+export default BackButton;
