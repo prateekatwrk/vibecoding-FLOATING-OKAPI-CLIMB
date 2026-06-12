@@ -91,19 +91,19 @@ export function useAttendanceTracking() {
   const [trackingEnabled, setTrackingEnabled] = React.useState(false);
   const [lastCheckMessage, setLastCheckMessage] = React.useState("Auto tracking is starting.");
   const [nextSaveLabel, setNextSaveLabel] = React.useState("Waiting for first automatic save.");
-  const hasAttemptedStartRef = React.useRef(false);
-  const isWorkHoursNow = isWithinWorkHours(new Date());
 
+  // Persist records
   React.useEffect(() => {
     localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(records));
   }, [records]);
 
-  const saveCurrentLocation = React.useCallback(() => {
+  // Core function to capture location
+  const captureLocation = React.useCallback(() => {
     const now = new Date();
 
     if (!isWithinWorkHours(now)) {
-      setLastCheckMessage("Outside work hours. Auto tracking will resume at 10 AM.");
-      setNextSaveLabel("Starts at 10 AM");
+      setLastCheckMessage("Outside work hours. Auto tracking will resume at 10 AM.");
+      setNextSaveLabel("Starts at 10 AM");
       return;
     }
 
@@ -118,18 +118,19 @@ export function useAttendanceTracking() {
       (position) => {
         const nowTime = Date.now();
 
-        setRecords((currentRecords) => {
-          const latestRecord = getLatestRecord(currentRecords);
-          const lastCapture = latestRecord?.timestamp ?? 0;
+        setRecords((current) => {
+          const latest = getLatestRecord(current);
+          const lastCapture = latest?.timestamp ?? 0;
 
-          if (lastCapture > 0 && nowTime - lastCapture < TRACKING_INTERVAL_MS) {
+          // Respect the 3‑hour interval
+          if (lastCapture && nowTime - lastCapture < TRACKING_INTERVAL_MS) {
             setNextSaveLabel(getNextSaveLabel(nowTime, lastCapture));
-            setLastCheckMessage("Location checked. Waiting for the next 3-hour save.");
-            return currentRecords;
+            setLastCheckMessage("Location checked. Waiting for the next 3‑hour save.");
+            return current;
           }
 
           const newRecord: AttendanceRecord = {
-            id: `${Date.now()}`,
+            id: `${nowTime}`,
             city: getCityName(position),
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -138,12 +139,10 @@ export function useAttendanceTracking() {
             timestamp: nowTime,
           };
 
-          const nextRecords = [newRecord, ...currentRecords].sort((a, b) => b.timestamp - a.timestamp);
-
+          const updated = [newRecord, ...current].sort((a, b) => b.timestamp - a.timestamp);
           setNextSaveLabel(getNextSaveLabel(nowTime, newRecord.timestamp));
           setLastCheckMessage("Location saved for attendance.");
-
-          return nextRecords;
+          return updated;
         });
       },
       (error) => {
@@ -159,13 +158,8 @@ export function useAttendanceTracking() {
     );
   }, []);
 
-  const startTracking = React.useCallback(() => {
-    if (trackingEnabled || hasAttemptedStartRef.current) {
-      return;
-    }
-
-    hasAttemptedStartRef.current = true;
-
+  // Start tracking on mount – this will immediately request permission
+  React.useEffect(() => {
     if (!navigator.geolocation) {
       setLastCheckMessage("Geolocation is not supported by this browser.");
       setNextSaveLabel("Unavailable");
@@ -173,62 +167,35 @@ export function useAttendanceTracking() {
     }
 
     setTrackingEnabled(true);
+    setLastCheckMessage("Requesting location permission...");
+    setNextSaveLabel("Waiting for permission");
+    captureLocation(); // triggers the browser permission prompt
+  }, [captureLocation]);
 
-    if (isWithinWorkHours(new Date())) {
-      setLastCheckMessage("Auto tracking started. Requesting location permission...");
-      setNextSaveLabel("Getting first location");
-    } else {
-      setLastCheckMessage("Auto tracking is waiting for 10 AM.");
-      setNextSaveLabel("Starts at 10 AM");
-    }
-
-    // This will trigger the browser's location permission prompt
-    saveCurrentLocation();
-  }, [saveCurrentLocation, trackingEnabled]);
-
-  // Auto-start tracking on component mount
+  // Periodic checks while tracking is enabled
   React.useEffect(() => {
-    startTracking();
-  }, [startTracking]);
+    if (!trackingEnabled) return;
 
-  // Check location when tab becomes visible
+    const intervalId = window.setInterval(captureLocation, CHECK_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [trackingEnabled, captureLocation]);
+
+  // Re‑request when the tab becomes visible
   React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        startTracking();
+    const onVisibility = () => {
+      if (!document.hidden && trackingEnabled) {
+        captureLocation();
       }
     };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [startTracking]);
-
-  // Periodic location checks
-  React.useEffect(() => {
-    if (!trackingEnabled) {
-      return;
-    }
-
-    const checkNow = () => {
-      saveCurrentLocation();
-    };
-
-    checkNow();
-
-    const intervalId = window.setInterval(checkNow, CHECK_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [saveCurrentLocation, trackingEnabled]);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [trackingEnabled, captureLocation]);
 
   return {
     records,
     trackingEnabled,
     lastCheckMessage,
     nextSaveLabel,
-    isWorkHoursNow,
+    isWorkHoursNow: isWithinWorkHours(new Date()),
   };
 }
